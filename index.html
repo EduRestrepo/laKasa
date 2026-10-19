@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Villalbilla Homes | Representación 3D y Recorrido Virtual</title>
+    <meta name="description" content="Visualizador 3D interactivo y recorrido virtual de las viviendas unifamiliares de Villalbilla Homes (Vértice 86). Incluye distribución por plantas y estudio de aparcamiento para SUV Kia Sportage 2025 y moto KTM 1290 S.">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Three.js & Plugins -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app-container">
+        <!-- Top Navigation Bar -->
+        <header id="top-nav">
+            <div class="logo-group">
+                <div class="logo-badge"><i class="fa-solid fa-house-chimney-window"></i></div>
+                <div class="title-meta">
+                    <h1>VILLALBILLA HOMES</h1>
+                    <span class="subtitle">20 Unifamiliares VPPL | Vértice 86 | Maqueta 3D & Tour</span>
+                </div>
+            </div>
+
+            <div class="header-stats">
+                <div class="stat-pill" title="Superficie construida total con buhardilla">
+                    <i class="fa-solid fa-ruler-combined"></i>
+                    <span><strong>147.95 m²</strong> Útiles</span>
+                </div>
+                <div class="stat-pill" title="Jardín privado posterior">
+                    <i class="fa-solid fa-tree"></i>
+                    <span><strong>36.08 m²</strong> Jardín</span>
+                </div>
+                <div class="stat-pill highlight" title="Aparcamiento privado delantero">
+                    <i class="fa-solid fa-car-side"></i>
+                    <span><strong>SUV + Moto</strong> Ingreso</span>
+                </div>
+            </div>
+
+            <div class="header-actions">
+                <button id="btn-video-tour" class="btn btn-primary" title="Iniciar recorrido cinematográfico automático por todos los ambientes">
+                    <i class="fa-solid fa-play"></i> Iniciar Video-Tour
+                </button>
+                <button id="btn-record-video" class="btn btn-accent" title="Generar y descargar video del recorrido en MP4/WebM">
+                    <i class="fa-solid fa-video"></i> Grabar Video
+                </button>
+                <button id="btn-gallery" class="btn btn-secondary" title="Ver renders hiperrealistas del dossier">
+                    <i class="fa-solid fa-images"></i> Renders HD
+                </button>
+            </div>
+        </header>
+
+        <!-- Main 3D Canvas Viewport -->
+        <main id="viewport-container">
+            <canvas id="webgl-canvas"></canvas>
+
+            <!-- Floating Overlay: Active Level / Environment Info -->
+            <div id="room-info-card" class="glass-card">
+                <div class="card-badge" id="card-level-tag">VISTA EXTERIOR</div>
+                <h3 id="card-room-title">Conjunto Residencial Villalbilla Homes</h3>
+                <p id="card-room-desc">Vivienda unifamiliar pareada con jardín delantero de acceso, porche de aparcamiento para 2 vehículos (SUV Kia Sportage 2025 y moto KTM 1290 S 2024), 3 plantas habitables y jardín privado trasero de 36 m².</p>
+                <div class="specs-chips" id="card-chips">
+                    <span class="chip"><i class="fa-solid fa-expand"></i> Parcela 7.00m x 16.00m</span>
+                    <span class="chip"><i class="fa-solid fa-shield-halved"></i> SATE + Madera</span>
+                    <span class="chip"><i class="fa-solid fa-temperature-arrow-down"></i> Aerotermia</span>
+                </div>
+            </div>
+
+            <!-- Vehicles Parking Verification Overlay -->
+            <div id="vehicle-bay-card" class="glass-card hidden">
+                <div class="card-badge success"><i class="fa-solid fa-circle-check"></i> ESTUDIO DE ESPACIO DE ACCESO</div>
+                <h4>Aparcamiento & Acceso (Ancho 6.56 m | Plaza 5.00 m + 1.30 m Batientes)</h4>
+
+                <div id="vehicle-layout-badge" style="display:flex; align-items:center; gap:8px; font-size:12px; background:rgba(255, 102, 0, 0.12); border:1px solid rgba(255, 102, 0, 0.35); border-radius:8px; padding:6px 10px; margin-bottom:12px; color:#fed7aa;">
+                    <i class="fa-solid fa-arrows-left-right" style="color:#ff6600;"></i>
+                    <span id="vehicle-layout-text"><strong>Disposición actual:</strong> Moto KTM (Izquierda) | SUV Kia (Derecha)</span>
+                </div>
+
+                <div class="vehicle-specs-grid">
+                    <div class="v-item" id="card-v-left">
+                        <div class="v-icon" style="color: var(--orange-ktm);"><i class="fa-solid fa-motorcycle"></i></div>
+                        <div class="v-text">
+                            <strong>KTM 1290 S 2024</strong>
+                            <span>Izquierda | 2.26m x 0.90m</span>
+                        </div>
+                    </div>
+                    <div class="v-item" id="card-v-right">
+                        <div class="v-icon" style="color: var(--accent-blue);"><i class="fa-solid fa-car"></i></div>
+                        <div class="v-text">
+                            <strong>Kia Sportage 2025</strong>
+                            <span>Derecha | 4.51m x 1.86m</span>
+                        </div>
+                    </div>
+                </div>
+                <p id="bay-note-text" class="bay-note"><strong>Doble acceso exterior:</strong> Cancel corredero para vehículos (3.50 m) y puerta peatonal independiente (1.05 m) con videoportero. En el interior, la nueva <strong>pérgola arquitectónica</strong> elimina postes centrales, asegurando gálibo total y maniobra sin obstáculos para la SUV y la Moto con pasillo central de 1.35 m.</p>
+                
+                <button id="btn-swap-vehicles" class="dock-btn" style="width: 100%; margin-top: 10px; justify-content: center; background: rgba(255, 102, 0, 0.18); border-color: rgba(255, 102, 0, 0.5); color: #fff; font-weight: 600;">
+                    <i class="fa-solid fa-repeat"></i> Alternar / Intercambiar Lados
+                </button>
+            </div>
+
+            <!-- Floor & View Selector (Floating Bottom Dock) -->
+            <div id="controls-dock" class="glass-dock">
+                <div class="dock-section">
+                    <span class="dock-label"><i class="fa-solid fa-layer-group"></i> NIVELES</span>
+                    <div class="btn-group" id="floor-buttons">
+                        <button class="dock-btn active" data-floor="all" id="btn-floor-all">
+                            <i class="fa-solid fa-cube"></i> Completa
+                        </button>
+                        <button class="dock-btn" data-floor="ground" id="btn-floor-ground">
+                            <i class="fa-solid fa-house"></i> P. Baja (62m²)
+                        </button>
+                        <button class="dock-btn" data-floor="first" id="btn-floor-first">
+                            <i class="fa-solid fa-bed"></i> P. 1ª (62m²)
+                        </button>
+                        <button class="dock-btn" data-floor="attic" id="btn-floor-attic">
+                            <i class="fa-solid fa-angles-up"></i> Buhardilla (23m²)
+                        </button>
+                        <button class="dock-btn" data-floor="exploded" id="btn-floor-exploded">
+                            <i class="fa-solid fa-arrows-up-down"></i> Despiece 3D
+                        </button>
+                    </div>
+                </div>
+
+                <div class="dock-divider"></div>
+
+                <div class="dock-section">
+                    <span class="dock-label"><i class="fa-solid fa-eye"></i> AMBIENTES</span>
+                    <div class="btn-group" id="room-buttons">
+                        <button class="dock-btn" data-room="parking" id="btn-room-parking" title="Aparcamiento delantero con Kia Sportage y KTM 1290 S">
+                            <i class="fa-solid fa-warehouse"></i> Parking Vehículos
+                        </button>
+                        <button class="dock-btn" data-room="living" id="btn-room-living" title="Salón comedor con salida al jardín">
+                            <i class="fa-solid fa-couch"></i> Salón
+                        </button>
+                        <button class="dock-btn" data-room="kitchen" id="btn-room-kitchen" title="Cocina amueblada">
+                            <i class="fa-solid fa-kitchen-set"></i> Cocina
+                        </button>
+                        <button class="dock-btn" data-room="garden" id="btn-room-garden" title="Jardín privado posterior">
+                            <i class="fa-solid fa-sun-plant-wilt"></i> Jardín Trasero
+                        </button>
+                        <button class="dock-btn" data-room="suite" id="btn-room-suite" title="Dormitorio principal con terraza y baño">
+                            <i class="fa-solid fa-crown"></i> Suite + Terraza
+                        </button>
+                        <button class="dock-btn" data-room="attic_room" id="btn-room-attic" title="Espacio diáfano abuhardillado">
+                            <i class="fa-solid fa-book-open-reader"></i> Buhardilla
+                        </button>
+                    </div>
+                </div>
+
+                <div class="dock-divider"></div>
+
+                <div class="dock-section">
+                    <span class="dock-label"><i class="fa-solid fa-sliders"></i> AJUSTES</span>
+                    <div class="btn-group">
+                        <button class="dock-btn" id="btn-toggle-roof" title="Quitar o poner el tejado de tejas">
+                            <i class="fa-solid fa-umbrella"></i> Tejado
+                        </button>
+                        <button class="dock-btn" id="btn-toggle-vehicles" title="Mostrar/Ocultar vehículos en el ingreso">
+                            <i class="fa-solid fa-car-tunnel"></i> Vehículos
+                        </button>
+                        <button class="dock-btn" id="btn-swap-dock" title="Intercambiar posición de vehículos (KTM / Kia)">
+                            <i class="fa-solid fa-arrows-left-right"></i> Lado
+                        </button>
+                        <button class="dock-btn" id="btn-toggle-sun" title="Cambiar iluminación (Día / Atardecer / Noche)">
+                            <i class="fa-solid fa-sun"></i> Luz
+                        </button>
+                        <button class="dock-btn" id="btn-reset-cam" title="Restablecer cámara">
+                            <i class="fa-solid fa-rotate-left"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tour Progress Bar & Captions -->
+            <div id="tour-hud" class="tour-hud hidden">
+                <div class="tour-header">
+                    <span class="tour-status"><i class="fa-solid fa-circle-dot recording-dot"></i> RECORRIDO VIRTUAL EN CURSO</span>
+                    <button id="btn-stop-tour" class="btn-tour-close"><i class="fa-solid fa-xmark"></i> Detener</button>
+                </div>
+                <div class="tour-caption-box">
+                    <h2 id="tour-caption-title">1. Entrada Principal & Aparcamiento</h2>
+                    <p id="tour-caption-text">Apreciamos la SUV Kia Sportage 2025 y la moto KTM 1290 Super Adventure S 2024 perfectamente ubicadas en el acceso privado.</p>
+                </div>
+                <div class="tour-progress-track">
+                    <div id="tour-progress-bar" class="tour-progress-fill"></div>
+                </div>
+            </div>
+
+            <!-- Recording In Progress Notification -->
+            <div id="recorder-indicator" class="rec-badge hidden">
+                <div class="pulse-circle"></div>
+                <span>GRABANDO VIDEO HD... (<span id="rec-timer">00:00</span>)</span>
+            </div>
+        </main>
+
+        <!-- Gallery / Blueprints Modal -->
+        <div id="gallery-modal" class="modal-overlay hidden">
+            <div class="modal-container glass-card">
+                <div class="modal-header">
+                    <h2><i class="fa-solid fa-images"></i> Renders y Planos Oficiales de Villalbilla Homes</h2>
+                    <button id="btn-close-modal" class="modal-close"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="modal-body">
+                    <div class="gallery-grid">
+                        <div class="gallery-item">
+                            <img src="extracted_pages/render_acceso_vehiculos_swapped.jpg" alt="Acceso Delantero con Puertas Invertidas y Pérgola">
+                            <div class="gallery-caption">Acceso Delantero: Doble Puerta Invertida, Pérgola, KTM 1290 y Kia Sportage</div>
+                        </div>
+                        <div class="gallery-item">
+                            <img src="extracted_pages/render_jardin_minihuerta.jpg" alt="Jardín Trasero con Minihuerta y Flores">
+                            <div class="gallery-caption">Jardín Privado (36 m²): Minihuerta Urbana de Madera, Tomates, Lavandas y Flores</div>
+                        </div>
+                        <div class="gallery-item">
+                            <img src="extracted_pages/Dossier_page_01.png" alt="Fachada Principal Dossier">
+                            <div class="gallery-caption">Fachada Delantera Oficial - Villalbilla Homes</div>
+                        </div>
+                        <div class="gallery-item">
+                            <img src="extracted_pages/A4_plan_page_01.png" alt="Planos de Distribución">
+                            <div class="gallery-caption">Plano Oficial de Distribución (P. Baja, 1ª y Buhardilla)</div>
+                        </div>
+                        <div class="gallery-item">
+                            <img src="extracted_pages/A3_plan_page_01.png" alt="Cotas y Sección">
+                            <div class="gallery-caption">Sección Arquitectónica, Alturas y Cotas</div>
+                        </div>
+                        <div class="gallery-item">
+                            <img src="extracted_pages/Dossier_page_06.png" alt="Superficies y Memoria">
+                            <div class="gallery-caption">Cuadro de Superficies y Memoria de Calidades</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Video Player Modal for Generated Walkthrough Video -->
+        <div id="video-modal" class="modal-overlay hidden">
+            <div class="modal-container glass-card video-modal-size">
+                <div class="modal-header">
+                    <h2><i class="fa-solid fa-circle-play"></i> Video del Recorrido Virtual por Pisos y Ambientes</h2>
+                    <button id="btn-close-video-modal" class="modal-close"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="modal-body video-body">
+                    <video id="walkthrough-video-player" controls autoplay loop class="custom-video">
+                        <source src="recorrido_villalbilla_homes.mp4" type="video/mp4">
+                        Tu navegador no soporta reproducción de video HTML5.
+                    </video>
+                    <div class="video-download-bar">
+                        <a href="recorrido_villalbilla_homes.mp4" download="Recorrido_Villalbilla_Homes_3D.mp4" class="btn btn-primary">
+                            <i class="fa-solid fa-download"></i> Descargar Archivo de Video MP4
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="house3d.js?v=3.3"></script>
+    <script src="app.js?v=2.3"></script>
+</body>
+</html>

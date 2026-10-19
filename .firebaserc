@@ -1,0 +1,17 @@
+{
+  "projects": {
+    "default": "mercury-55a52"
+  },
+  "targets": {
+    "mercury-55a52": {
+      "hosting": {
+        "lakasa": [
+          "mercury-lakasa"
+        ],
+        "lakasa-homes": [
+          "lakasa-homes"
+        ]
+      }
+    }
+  }
+}

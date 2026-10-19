@@ -1,0 +1,20 @@
+# System & OS
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+.vscode/
+.idea/
+
+# Python caches and temporary scratch scripts
+__pycache__/
+*.py[cod]
+*$py.class
+scratch/
+
+# Logs
+*.log
+
+# Firebase local cache
+.firebase/
+
