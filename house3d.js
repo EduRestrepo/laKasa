@@ -9,6 +9,8 @@ window.House3D = (function() {
     let scene, camera, renderer, controls;
     let houseGroup, groundFloorGroup, firstFloorGroup, atticGroup, roofGroup;
     let vehiclesGroup, exteriorGroup, dimensionMarkersGroup;
+    let neighborHouses = [], neighborhoodGroup = null;
+    let areNeighborsVisible = true;
     let sunLight, ambientLight, fillLight, hemiLight;
     let interiorLights = [];
     let isRoofVisible = true;
@@ -2053,12 +2055,15 @@ window.House3D = (function() {
         group.add(outdoorTable);
 
         // Perimeter garden walls
-        const wallBack = createBox(7.2, 1.85, 0.22, materials.partyWall);
+        const wallBack = createBox(7.00, 1.85, 0.22, materials.partyWall);
         wallBack.position.set(0, 0.92, -11.0);
+        wallBack.name = "gardenWallBack";
         const wallSideL = createBox(0.22, 1.85, 6.0, materials.partyWall);
-        wallSideL.position.set(-3.49, 0.92, -8.0);
+        wallSideL.position.set(-3.39, 0.92, -8.0);
+        wallSideL.name = "gardenWallSideL";
         const wallSideR = createBox(0.22, 1.85, 6.0, materials.partyWall);
-        wallSideR.position.set(3.49, 0.92, -8.0);
+        wallSideR.position.set(3.39, 0.92, -8.0);
+        wallSideR.name = "gardenWallSideR";
         group.add(wallBack);
         group.add(wallSideL);
         group.add(wallSideR);
@@ -3078,28 +3083,554 @@ window.House3D = (function() {
 
     /* ----------------------------------------------------
        BUILD STREET & NEIGHBORHOOD ENVIRONMENT
+       Expanded for the entire block of 12 houses & Public Park
        ---------------------------------------------------- */
     function buildExteriorEnvironment() {
         const group = new THREE.Group();
         group.name = "exteriorEnvironment";
 
-        // Acera y calzada en la alineación oficial de calle (Z = 11.20m)
-        const sidewalk = createBox(32.0, 0.12, 2.2, new THREE.MeshStandardMaterial({ color: 0x8a94a2, roughness: 0.8 }));
-        sidewalk.position.set(0, 0.04, 12.35);
-        const street = createBox(32.0, 0.1, 8.0, new THREE.MeshStandardMaterial({ color: 0x2b3342, roughness: 0.9 }));
-        street.position.set(0, 0.02, 17.45);
-        group.add(sidewalk);
-        group.add(street);
+        // Base ground slab beneath the entire urban development and park
+        const siteGround = createBox(116.0, 0.06, 130.0, new THREE.MeshStandardMaterial({
+            color: 0xc8d2dc,
+            roughness: 0.95
+        }));
+        siteGround.position.set(10.5, -0.04, 14.0);
+        group.add(siteGround);
 
-        // Suelo perimetral colindante (sin cajas fantasma translúcidas que provoquen artefactos de ordenación alfa)
-        const groundPlotL = createBox(6.8, 0.06, 20.0, new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.9 }));
-        groundPlotL.position.set(-7.0, -0.03, 0);
-        const groundPlotR = createBox(6.8, 0.06, 20.0, new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.9 }));
-        groundPlotR.position.set(7.0, -0.03, 0);
-        group.add(groundPlotL);
-        group.add(groundPlotR);
+        // FRONT STREET & SIDEWALK (ALINEACIÓN CALLE PRINCIPAL - C. SIERRA DE URBIÓN)
+        // Sidewalk along the front row entrance gates (Z = 11.20m)
+        const sidewalkFront = createBox(86.0, 0.12, 2.4, new THREE.MeshStandardMaterial({
+            color: 0x8a94a2,
+            roughness: 0.82
+        }));
+        sidewalkFront.position.set(10.5, 0.04, 12.45);
+        const streetFront = createBox(86.0, 0.10, 8.0, new THREE.MeshStandardMaterial({
+            color: 0x242a35,
+            roughness: 0.90
+        }));
+        streetFront.position.set(10.5, 0.02, 17.65);
+        group.add(sidewalkFront);
+        group.add(streetFront);
+
+        // BACK STREET & SIDEWALK (ALINEACIÓN CALLE POSTERIOR - VECINOS DEL FONDO)
+        // Sidewalk along the back row entrance gates (Z = -33.20m)
+        const sidewalkBack = createBox(86.0, 0.12, 2.4, new THREE.MeshStandardMaterial({
+            color: 0x8a94a2,
+            roughness: 0.82
+        }));
+        sidewalkBack.position.set(10.5, 0.04, -34.45);
+        const streetBack = createBox(86.0, 0.10, 8.0, new THREE.MeshStandardMaterial({
+            color: 0x242a35,
+            roughness: 0.90
+        }));
+        streetBack.position.set(10.5, 0.02, -39.65);
+        group.add(sidewalkBack);
+        group.add(streetBack);
+
+        // STREET TREES (Árboles jóvenes de acera con alcorque según Dossier Villalbilla Homes)
+        function createStreetTree(x, z) {
+            const tree = new THREE.Group();
+            // Tree pit (alcorque con marco antracita)
+            const pit = createBox(0.95, 0.02, 0.95, materials.metalAnthracite);
+            pit.position.set(x, 0.11, z);
+            const soil = createBox(0.85, 0.03, 0.85, materials.gravelStone);
+            soil.position.set(x, 0.11, z);
+            // Trunk
+            const trunk = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.06, 0.09, 2.4, 8),
+                materials.furnitureWood
+            );
+            trunk.position.set(x, 1.3, z);
+            // Stakes (tutores)
+            const stake1 = createBox(0.03, 1.6, 0.03, materials.furnitureWood);
+            stake1.position.set(x - 0.12, 0.9, z);
+            const stake2 = createBox(0.03, 1.6, 0.03, materials.furnitureWood);
+            stake2.position.set(x + 0.12, 0.9, z);
+            // Canopy
+            const crown1 = new THREE.Mesh(
+                new THREE.SphereGeometry(0.85, 10, 10),
+                materials.floorGrass
+            );
+            crown1.position.set(x, 2.9, z);
+            crown1.scale.set(0.9, 1.3, 0.9);
+            const crown2 = new THREE.Mesh(
+                new THREE.SphereGeometry(0.65, 8, 8),
+                materials.floorGrass
+            );
+            crown2.position.set(x + 0.15, 3.4, z - 0.1);
+
+            tree.add(pit);
+            tree.add(soil);
+            tree.add(trunk);
+            tree.add(stake1);
+            tree.add(stake2);
+            tree.add(crown1);
+            tree.add(crown2);
+            return tree;
+        }
+
+        const treeXs = [-7.0, 0.0, 7.0, 14.0, 21.0, 28.0];
+        treeXs.forEach(tx => {
+            // Front sidewalk trees
+            group.add(createStreetTree(tx - 2.8, 12.8));
+            // Back sidewalk trees
+            group.add(createStreetTree(tx + 2.8, -34.8));
+        });
+
+        // PARQUE PÚBLICO FRENTE A LAS CASAS (C. SIERRA DE URBIÓN, VILLALBILLA)
+        group.add(buildParkAcrossTheStreet());
 
         return group;
+    }
+
+    /* ----------------------------------------------------
+       PARQUE PÚBLICO FRENTE A LAS VIVIENDAS (C. SIERRA DE URBIÓN, VILLALBILLA)
+       Recreación fiel del entorno real de Google Street View:
+       - Acera opuesta de C. Sierra de Urbión con bordillo de granito
+       - Terreno natural de parque mediterráneo con césped rústico
+       - Sendero peatonal de zahorra / albero compactado serpenteante
+       - Ciruelos de Japón (Prunus cerasifera 'Nigra') con follaje rojo púrpura oscuro
+       - Fresnos / chopos caducifolios de porte alto y verde luminoso
+       - Píceas / coníferas piramidales jóvenes
+       - Parterres de lavanda aromática, romero y arbustos berberis púrpura
+       - Mobiliario urbano oficial de Villalbilla: bancos de madera y acero, farolas LED y papeleras
+       ---------------------------------------------------- */
+    function buildParkAcrossTheStreet() {
+        const park = new THREE.Group();
+        park.name = "publicParkSierraDeUrbion";
+
+        const pMat = {
+            grass: new THREE.MeshStandardMaterial({ color: 0x8a9b6c, roughness: 0.95 }),
+            moundGrass: new THREE.MeshStandardMaterial({ color: 0x7e8f60, roughness: 0.96 }),
+            path: new THREE.MeshStandardMaterial({ color: 0xd4c6a8, roughness: 0.92 }),
+            curb: new THREE.MeshStandardMaterial({ color: 0x828d9c, roughness: 0.85 }),
+            sidewalk: new THREE.MeshStandardMaterial({ color: 0x8e98a5, roughness: 0.80 }),
+            plumDark: new THREE.MeshStandardMaterial({ color: 0x361625, roughness: 0.75 }),
+            plumLight: new THREE.MeshStandardMaterial({ color: 0x4d1e34, roughness: 0.70 }),
+            greenPoplar1: new THREE.MeshStandardMaterial({ color: 0x4e7728, roughness: 0.76 }),
+            greenPoplar2: new THREE.MeshStandardMaterial({ color: 0x6a9c34, roughness: 0.72 }),
+            conifer: new THREE.MeshStandardMaterial({ color: 0x244738, roughness: 0.82 }),
+            lavenderFlower: new THREE.MeshStandardMaterial({ color: 0x6d5088, roughness: 0.85 }),
+            lavenderFoliage: new THREE.MeshStandardMaterial({ color: 0x586b5b, roughness: 0.85 }),
+            shrubDarkGreen: new THREE.MeshStandardMaterial({ color: 0x2d522e, roughness: 0.80 }),
+            woodBench: new THREE.MeshStandardMaterial({ color: 0xb3763f, roughness: 0.65 }),
+            steelLantern: new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.65, roughness: 0.35 }),
+            lanternLed: new THREE.MeshBasicMaterial({ color: 0xffedd5 }),
+            distantHills: new THREE.MeshStandardMaterial({ color: 0x9ba888, roughness: 0.98 })
+        };
+
+        // 1. Acera opuesta de la calle (Z = 21.65m a 24.15m)
+        const curbOpposite = createBox(96.0, 0.14, 0.20, pMat.curb);
+        curbOpposite.position.set(10.5, 0.07, 21.75);
+        const sidewalkOpposite = createBox(96.0, 0.12, 2.30, pMat.sidewalk);
+        sidewalkOpposite.position.set(10.5, 0.05, 23.00);
+        park.add(curbOpposite);
+        park.add(sidewalkOpposite);
+
+        // 2. Terreno principal del parque (Z = 24.15m a 70.0m)
+        const parkGround = createBox(102.0, 0.08, 46.0, pMat.grass);
+        parkGround.position.set(10.5, 0.03, 47.15);
+        park.add(parkGround);
+
+        // Lomas suaves del parque (Mounds) para dar topografía natural como en la foto
+        const moundsData = [
+            { x: -5, z: 32, rx: 8, rz: 6, h: 0.45 },
+            { x: 12, z: 36, rx: 11, rz: 8, h: 0.55 },
+            { x: 26, z: 42, rx: 9, rz: 7, h: 0.40 },
+            { x: -16, z: 45, rx: 12, rz: 9, h: 0.50 },
+            { x: 5, z: 54, rx: 15, rz: 10, h: 0.60 },
+            { x: 32, z: 50, rx: 14, rz: 9, h: 0.50 }
+        ];
+        moundsData.forEach(m => {
+            const moundGeo = new THREE.SphereGeometry(1, 12, 8);
+            const moundMesh = new THREE.Mesh(moundGeo, pMat.moundGrass);
+            moundMesh.scale.set(m.rx, m.h, m.rz);
+            moundMesh.position.set(m.x, 0.02, m.z);
+            park.add(moundMesh);
+        });
+
+        // 3. Sendero peatonal serpenteante de zahorra / albero (curving path)
+        const pathSegments = [
+            { x: -8, z: 24.2, w: 2.3, l: 3.5, rot: 0.15 },
+            { x: -6.5, z: 27.5, w: 2.3, l: 4.0, rot: 0.35 },
+            { x: -4.0, z: 31.0, w: 2.3, l: 4.2, rot: 0.50 },
+            { x: -0.5, z: 33.5, w: 2.3, l: 4.5, rot: 0.40 },
+            { x: 3.5, z: 35.0, w: 2.4, l: 4.5, rot: 0.15 },
+            { x: 8.0, z: 35.5, w: 2.4, l: 5.0, rot: -0.10 },
+            { x: 13.0, z: 35.0, w: 2.4, l: 5.2, rot: -0.25 },
+            { x: 18.0, z: 33.5, w: 2.4, l: 5.0, rot: -0.35 },
+            { x: 22.5, z: 31.0, w: 2.3, l: 4.5, rot: -0.40 },
+            { x: 26.0, z: 27.5, w: 2.3, l: 4.2, rot: -0.25 },
+            { x: 28.0, z: 24.2, w: 2.3, l: 3.5, rot: 0 },
+            // Ramal interior del parque
+            { x: 5.0, z: 39.0, w: 2.2, l: 5.0, rot: 0.70 },
+            { x: 8.5, z: 43.5, w: 2.2, l: 5.5, rot: 0.60 },
+            { x: 13.0, z: 47.5, w: 2.2, l: 6.0, rot: 0.40 },
+            { x: 18.5, z: 50.5, w: 2.2, l: 6.0, rot: 0.10 },
+            { x: 24.5, z: 51.5, w: 2.2, l: 6.5, rot: -0.20 },
+            { x: 30.5, z: 50.0, w: 2.2, l: 6.0, rot: -0.45 },
+            { x: 35.0, z: 46.5, w: 2.2, l: 5.5, rot: -0.60 },
+            { x: 37.5, z: 41.5, w: 2.2, l: 5.0, rot: -0.80 }
+        ];
+        pathSegments.forEach(ps => {
+            const pMesh = createBox(ps.w, 0.03, ps.l, pMat.path);
+            pMesh.position.set(ps.x, 0.08, ps.z);
+            pMesh.rotation.y = ps.rot;
+            park.add(pMesh);
+        });
+
+        // 4. GENERADORES DE VEGETACIÓN SEGÚN GOOGLE STREET VIEW
+
+        // A) Ciruelo de Japón / Púrpura (Prunus cerasifera 'Nigra')
+        function createPrunusTree(x, z, scale = 1.0) {
+            const tree = new THREE.Group();
+            tree.position.set(x, 0.07, z);
+
+            const trunkMat = materials.furnitureWood;
+            const trunk1 = new THREE.Mesh(new THREE.CylinderGeometry(0.08 * scale, 0.12 * scale, 1.6 * scale, 7), trunkMat);
+            trunk1.position.set(0, 0.8 * scale, 0);
+            trunk1.rotation.z = 0.08;
+            tree.add(trunk1);
+
+            const trunk2 = new THREE.Mesh(new THREE.CylinderGeometry(0.06 * scale, 0.09 * scale, 1.4 * scale, 6), trunkMat);
+            trunk2.position.set(0.12 * scale, 0.9 * scale, 0.05 * scale);
+            trunk2.rotation.z = -0.18;
+            tree.add(trunk2);
+
+            const crown1 = new THREE.Mesh(new THREE.SphereGeometry(1.05 * scale, 9, 8), pMat.plumDark);
+            crown1.position.set(0, 2.1 * scale, 0);
+            crown1.scale.set(0.95, 1.25, 0.95);
+            tree.add(crown1);
+
+            const crown2 = new THREE.Mesh(new THREE.SphereGeometry(0.85 * scale, 8, 7), pMat.plumLight);
+            crown2.position.set(0.3 * scale, 2.6 * scale, -0.15 * scale);
+            crown2.scale.set(0.9, 1.15, 0.9);
+            tree.add(crown2);
+
+            const crown3 = new THREE.Mesh(new THREE.SphereGeometry(0.75 * scale, 7, 7), pMat.plumDark);
+            crown3.position.set(-0.25 * scale, 2.3 * scale, 0.2 * scale);
+            crown3.scale.set(1.0, 1.1, 1.0);
+            tree.add(crown3);
+
+            return tree;
+        }
+
+        // B) Árbol caducifolio verde de porte medio-alto (Fresnos / Álamos / Chopos)
+        function createGreenDeciduousTree(x, z, scale = 1.0) {
+            const tree = new THREE.Group();
+            tree.position.set(x, 0.07, z);
+
+            const trunkMat = materials.furnitureWood;
+            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.12 * scale, 0.18 * scale, 2.8 * scale, 8), trunkMat);
+            trunk.position.set(0, 1.4 * scale, 0);
+            tree.add(trunk);
+
+            const crownMain = new THREE.Mesh(new THREE.SphereGeometry(1.5 * scale, 10, 8), pMat.greenPoplar1);
+            crownMain.position.set(0, 3.6 * scale, 0);
+            crownMain.scale.set(1.0, 1.3, 1.0);
+            tree.add(crownMain);
+
+            const crownTop = new THREE.Mesh(new THREE.SphereGeometry(1.1 * scale, 8, 7), pMat.greenPoplar2);
+            crownTop.position.set(0.2 * scale, 4.6 * scale, -0.1 * scale);
+            crownTop.scale.set(0.9, 1.2, 0.9);
+            tree.add(crownTop);
+
+            const crownSub = new THREE.Mesh(new THREE.SphereGeometry(1.0 * scale, 8, 7), pMat.greenPoplar1);
+            crownSub.position.set(-0.35 * scale, 3.2 * scale, 0.25 * scale);
+            tree.add(crownSub);
+
+            return tree;
+        }
+
+        // C) Conífera piramidal perenne (Pícea / Cedro / Ciprés joven)
+        function createConiferTree(x, z, scale = 1.0) {
+            const tree = new THREE.Group();
+            tree.position.set(x, 0.07, z);
+
+            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.08 * scale, 0.12 * scale, 1.2 * scale, 6), materials.furnitureWood);
+            trunk.position.set(0, 0.6 * scale, 0);
+            tree.add(trunk);
+
+            for (let tier = 0; tier < 4; tier++) {
+                const rBottom = (0.95 - tier * 0.18) * scale;
+                const hTier = (1.1 - tier * 0.12) * scale;
+                const cone = new THREE.Mesh(new THREE.ConeGeometry(rBottom, hTier, 7), pMat.conifer);
+                cone.position.set(0, (1.2 + tier * 0.75) * scale, 0);
+                tree.add(cone);
+            }
+
+            return tree;
+        }
+
+        // D) Mata de arbustos bajos aromáticos (Lavanda, Romero, Berberis púrpura)
+        function createShrubClump(x, z, type = 'lavender', r = 0.5) {
+            const shrub = new THREE.Group();
+            shrub.position.set(x, 0.08, z);
+
+            if (type === 'lavender') {
+                const baseFoliage = new THREE.Mesh(new THREE.SphereGeometry(r, 7, 6), pMat.lavenderFoliage);
+                baseFoliage.scale.set(1.2, 0.7, 1.2);
+                baseFoliage.position.set(0, r * 0.5, 0);
+                shrub.add(baseFoliage);
+
+                for (let i = 0; i < 5; i++) {
+                    const ang = (i / 5) * Math.PI * 2;
+                    const flower = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.05, 0.25, 5), pMat.lavenderFlower);
+                    flower.position.set(Math.cos(ang) * (r * 0.65), r * 0.85, Math.sin(ang) * (r * 0.65));
+                    flower.rotation.z = (Math.random() - 0.5) * 0.3;
+                    shrub.add(flower);
+                }
+            } else if (type === 'plumBush') {
+                const bush = new THREE.Mesh(new THREE.SphereGeometry(r, 7, 6), pMat.plumDark);
+                bush.scale.set(1.3, 0.85, 1.1);
+                bush.position.set(0, r * 0.6, 0);
+                shrub.add(bush);
+            } else {
+                const bush = new THREE.Mesh(new THREE.SphereGeometry(r, 7, 6), pMat.shrubDarkGreen);
+                bush.scale.set(1.15, 0.75, 1.15);
+                bush.position.set(0, r * 0.55, 0);
+                shrub.add(bush);
+            }
+
+            return shrub;
+        }
+
+        // E) Banco de parque oficial (Lamas de madera + soporte antracita)
+        function createParkBench(x, z, rotY = 0) {
+            const bench = new THREE.Group();
+            bench.position.set(x, 0.08, z);
+            bench.rotation.y = rotY;
+
+            const legL = createBox(0.08, 0.52, 0.58, pMat.steelLantern);
+            legL.position.set(-0.75, 0.26, 0);
+            const legR = createBox(0.08, 0.52, 0.58, pMat.steelLantern);
+            legR.position.set(0.75, 0.26, 0);
+            bench.add(legL);
+            bench.add(legR);
+
+            for (let sl = 0; sl < 3; sl++) {
+                const slat = createBox(1.70, 0.04, 0.12, pMat.woodBench);
+                slat.position.set(0, 0.44, -0.15 + (sl * 0.14));
+                bench.add(slat);
+            }
+
+            for (let bk = 0; bk < 2; bk++) {
+                const slatBack = createBox(1.70, 0.12, 0.04, pMat.woodBench);
+                slatBack.position.set(0, 0.66 + (bk * 0.14), -0.22);
+                bench.add(slatBack);
+            }
+
+            return bench;
+        }
+
+        // F) Farola de parque cilíndrica (Park Streetlight)
+        function createParkLantern(x, z) {
+            const lantern = new THREE.Group();
+            lantern.position.set(x, 0.08, z);
+
+            const base = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.16, 0.45, 8), pMat.steelLantern);
+            base.position.set(0, 0.22, 0);
+            const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, 3.8, 8), pMat.steelLantern);
+            pole.position.set(0, 2.0, 0);
+            const arm = createBox(0.06, 0.06, 0.60, pMat.steelLantern);
+            arm.position.set(0, 3.85, 0.25);
+            const head = createBox(0.16, 0.08, 0.40, pMat.steelLantern);
+            head.position.set(0, 3.82, 0.45);
+            const led = createBox(0.12, 0.02, 0.32, pMat.lanternLed);
+            led.position.set(0, 3.77, 0.45);
+
+            lantern.add(base);
+            lantern.add(pole);
+            lantern.add(arm);
+            lantern.add(head);
+            lantern.add(led);
+            return lantern;
+        }
+
+        // 5. DISTRIBUCIÓN DE ÁRBOLES Y VEGETACIÓN SEGÚN LA FOTO EXACTA
+        // Ciruelos de flor roja (Prunus cerasifera 'Nigra') - Idénticos a la foto
+        park.add(createPrunusTree(-2.5, 28.5, 1.15));
+        park.add(createPrunusTree(4.8, 28.2, 1.30));
+        park.add(createPrunusTree(11.5, 29.0, 1.05));
+        park.add(createPrunusTree(18.2, 29.5, 1.20));
+        park.add(createPrunusTree(-10.5, 31.0, 1.0));
+        park.add(createPrunusTree(25.5, 33.0, 1.10));
+        park.add(createPrunusTree(1.5, 41.0, 1.25));
+        park.add(createPrunusTree(16.0, 44.0, 1.15));
+
+        // Árboles verdes caducifolios altos (Chopos / Fresnos del fondo)
+        park.add(createGreenDeciduousTree(-13.0, 38.0, 1.35));
+        park.add(createGreenDeciduousTree(0.0, 47.0, 1.45));
+        park.add(createGreenDeciduousTree(9.0, 52.0, 1.55));
+        park.add(createGreenDeciduousTree(22.0, 48.0, 1.40));
+        park.add(createGreenDeciduousTree(33.0, 42.0, 1.30));
+        park.add(createGreenDeciduousTree(-22.0, 42.0, 1.40));
+        park.add(createGreenDeciduousTree(15.0, 58.0, 1.60));
+
+        // Coníferas piramidales (Cipreses / Píceas del margen izquierdo de la foto)
+        park.add(createConiferTree(-18.5, 29.0, 1.10));
+        park.add(createConiferTree(-7.5, 35.0, 1.25));
+        park.add(createConiferTree(29.0, 31.5, 1.15));
+        park.add(createConiferTree(-15.0, 50.0, 1.30));
+        park.add(createConiferTree(35.0, 54.0, 1.35));
+
+        // Parterres de arbustos (Lavanda, Berberis púrpura, Romero) a lo largo del sendero
+        const shrubsData = [
+            // Primer plano frente a las casas
+            { x: -4.8, z: 27.0, type: 'plumBush', r: 0.70 },
+            { x: -0.8, z: 26.5, type: 'lavender', r: 0.55 },
+            { x: 2.2, z: 27.2, type: 'rosemary', r: 0.50 },
+            { x: 8.5, z: 27.8, type: 'plumBush', r: 0.65 },
+            { x: 14.5, z: 28.0, type: 'lavender', r: 0.60 },
+            { x: 21.0, z: 27.5, type: 'rosemary', r: 0.50 },
+            // Bordes del sendero
+            { x: -3.0, z: 34.2, type: 'lavender', r: 0.55 },
+            { x: 4.5, z: 36.8, type: 'rosemary', r: 0.50 },
+            { x: 10.5, z: 36.8, type: 'plumBush', r: 0.60 },
+            { x: 16.0, z: 34.5, type: 'lavender', r: 0.55 },
+            { x: 21.5, z: 32.2, type: 'rosemary', r: 0.50 },
+            { x: 11.5, z: 46.5, type: 'lavender', r: 0.60 },
+            { x: 20.0, z: 51.0, type: 'plumBush', r: 0.65 }
+        ];
+        shrubsData.forEach(s => {
+            park.add(createShrubClump(s.x, s.z, s.type, s.r));
+        });
+
+        // 6. MOBILIARIO URBANO DE VILLALBILLA (Bancos y Farolas)
+        // Bancos junto al sendero
+        park.add(createParkBench(-1.5, 35.2, 0.40));
+        park.add(createParkBench(11.0, 37.0, -0.20));
+        park.add(createParkBench(24.5, 33.2, -0.65));
+        park.add(createParkBench(15.5, 49.0, 0.30));
+
+        // Farolas cilíndricas del parque (como la que se ve en la foto)
+        park.add(createParkLantern(-5.5, 28.5));
+        park.add(createParkLantern(7.5, 29.0));
+        park.add(createParkLantern(19.5, 30.0));
+        park.add(createParkLantern(31.0, 31.5));
+        park.add(createParkLantern(12.5, 42.0));
+
+        // 7. Colinas del fondo en el horizonte (paisaje campestre de Villalbilla)
+        const hill1 = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 8), pMat.distantHills);
+        hill1.scale.set(45, 3.5, 20);
+        hill1.position.set(-15, -1.0, 78);
+        park.add(hill1);
+
+        const hill2 = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 8), pMat.distantHills);
+        hill2.scale.set(55, 4.2, 22);
+        hill2.position.set(30, -1.0, 82);
+        park.add(hill2);
+
+        return park;
+    }
+
+    /* ----------------------------------------------------
+       BUILD COMPLETE NEIGHBORHOOD COMPLEX
+       - 1 house to the left (X = -7.0m)
+       - Main interactive house at center (X = 0.0m)
+       - 4 houses to the right (X = +7.0m, +14.0m, +21.0m, +28.0m)
+       - Mirrored back row with touching rear gardens at Z = -11.0m (X = -7.0, 0, 7, 14, 21, 28 at Z = -22.0m, rot Y = PI)
+       ---------------------------------------------------- */
+    function buildNeighborhood() {
+        if (neighborhoodGroup) {
+            scene.remove(neighborhoodGroup);
+        }
+        neighborhoodGroup = new THREE.Group();
+        neighborhoodGroup.name = "neighborhoodGroup";
+        neighborHouses = [];
+
+        // Definition of the 11 neighbor houses:
+        // Front Row: 1 to the left (x = -7), 4 to the right (x = 7, 14, 21, 28)
+        // Back Row: 6 houses directly behind (x = -7, 0, 7, 14, 21, 28) at z = -22, rotated Math.PI (gardens meet at z = -11)
+        const houseConfigs = [
+            // FILA DELANTERA (Z = 0.0m, Fachada hacia calle principal Z > 0)
+            // Casa 1 (Izquierda, X = -7.0m): Sin moto
+            { x: -7.0, z: 0.0, mirrored: false, carColor: 0x64748b, hasCar: true, hasBike: false, label: "Casa 1 (Izquierda)" },
+            // Casa 2 (Principal/Central, X = 0.0m): CONTIENE LA MOTO KTM 1290 S ORIGINAL
+            // Casa 3 (Derecha 1, X = +7.0m): Sin moto
+            { x:  7.0, z: 0.0, mirrored: false, carColor: 0x334155, hasCar: true, hasBike: false, label: "Casa 3 (Derecha +1)" },
+            // Casa 4 (Derecha 2, X = +14.0m): Sin moto
+            { x: 14.0, z: 0.0, mirrored: false, carColor: 0x18181b, hasCar: true, hasBike: false, label: "Casa 4 (Derecha +2)" },
+            // Casa 5 (Derecha 3, X = +21.0m): Sin moto
+            { x: 21.0, z: 0.0, mirrored: false, carColor: 0x991b1b, hasCar: true, hasBike: false, label: "Casa 5 (Derecha +3)" },
+            // Casa 6 (Derecha 4, X = +28.0m): Sin moto
+            { x: 28.0, z: 0.0, mirrored: false, carColor: 0x94a3b8, hasCar: true, hasBike: false, label: "Casa 6 (Derecha +4)" },
+
+            // FILA TRASERA EN ESPEJO (Z = -22.0m, rotY = PI) - Sin motos
+            { x: -7.0, z: -22.0, mirrored: true, carColor: 0x1e3a8a, hasCar: true, hasBike: false, label: "Vecino Posterior (-1)" },
+            { x:  0.0, z: -22.0, mirrored: true, carColor: 0xf8fafc, hasCar: true, hasBike: false, label: "Vecino Posterior Central (0)" },
+            { x:  7.0, z: -22.0, mirrored: true, carColor: 0x475569, hasCar: true, hasBike: false, label: "Vecino Posterior (+1)" },
+            { x: 14.0, z: -22.0, mirrored: true, carColor: 0x334155, hasCar: true, hasBike: false, label: "Vecino Posterior (+2)" },
+            { x: 21.0, z: -22.0, mirrored: true, carColor: 0xffffff, hasCar: true, hasBike: false, label: "Vecino Posterior (+3)" },
+            { x: 28.0, z: -22.0, mirrored: true, carColor: 0x111827, hasCar: true, hasBike: false, label: "Vecino Posterior (+4)" }
+        ];
+
+        houseConfigs.forEach(cfg => {
+            const clone = houseGroup.clone(true);
+            clone.position.set(cfg.x, 0, cfg.z);
+            if (cfg.mirrored) {
+                clone.rotation.y = Math.PI;
+            }
+
+            // 1. Quitar luces puntuales dinámicas en clones para respetar el límite de luces de WebGL
+            const lightsToRemove = [];
+            clone.traverse(child => {
+                if (child.isLight) lightsToRemove.push(child);
+            });
+            lightsToRemove.forEach(l => {
+                if (l.parent) l.parent.remove(l);
+            });
+
+            // 2. Fila trasera en espejo: eliminar el muro trasero para compartir el muro de la fila delantera y evitar Z-fighting
+            if (cfg.mirrored) {
+                const backWall = clone.getObjectByName("gardenWallBack");
+                if (backWall && backWall.parent) {
+                    backWall.parent.remove(backWall);
+                }
+            }
+
+            // 3. Optimización de rendimiento: eliminar microdetalles de interior no visibles desde el exterior
+            const heavyItems = [
+                "gardenFloraAndVeggiePatch",
+                "architecturalStaircase_0",
+                "architecturalStaircase_3"
+            ];
+            heavyItems.forEach(name => {
+                const item = clone.getObjectByName(name);
+                if (item && item.parent) item.parent.remove(item);
+            });
+
+            // 4. Personalización y variedad de vehículos en aparcamientos
+            const kia = clone.getObjectByName("KiaSportage2025");
+            const ktm = clone.getObjectByName("KTM1290SuperAdventureS");
+
+            if (!cfg.hasCar && kia && kia.parent) {
+                kia.parent.remove(kia);
+            } else if (kia && cfg.carColor) {
+                const paintMat = new THREE.MeshPhysicalMaterial({
+                    color: cfg.carColor,
+                    roughness: 0.18,
+                    metalness: 0.82,
+                    clearcoat: 1.0,
+                    clearcoatRoughness: 0.08
+                });
+                kia.traverse(child => {
+                    if (child.isMesh && child.material === materials.kiaPaint) {
+                        child.material = paintMat;
+                    }
+                });
+            }
+
+            if (!cfg.hasBike && ktm && ktm.parent) {
+                ktm.parent.remove(ktm);
+            }
+
+            neighborhoodGroup.add(clone);
+            neighborHouses.push(clone);
+        });
+
+        neighborhoodGroup.visible = areNeighborsVisible;
+        scene.add(neighborhoodGroup);
     }
 
     /* ----------------------------------------------------
@@ -3163,8 +3694,8 @@ window.House3D = (function() {
         scene.environment = skyTexture;
         scene.fog = new THREE.FogExp2(0xcfdbe8, 0.0075);
 
-        camera = new THREE.PerspectiveCamera(42, container.clientWidth / container.clientHeight, 0.3, 150);
-        camera.position.set(13.5, 10.5, 19.5);
+        camera = new THREE.PerspectiveCamera(42, container.clientWidth / container.clientHeight, 0.3, 350);
+        camera.position.set(16.5, 12.0, 24.5);
 
         renderer = new THREE.WebGLRenderer({
             canvas: canvas,
@@ -3188,8 +3719,8 @@ window.House3D = (function() {
         controls.dampingFactor = 0.05;
         controls.maxPolarAngle = Math.PI / 2 - 0.02;
         controls.minDistance = 2;
-        controls.maxDistance = 55;
-        controls.target.set(0, 2.6, 2.5);
+        controls.maxDistance = 160;
+        controls.target.set(3.5, 2.6, 1.0);
 
         // LIGHTING RIG
         hemiLight = new THREE.HemisphereLight(0xdbeafe, 0x1e293b, 0.58);
@@ -3199,16 +3730,16 @@ window.House3D = (function() {
         scene.add(ambientLight);
 
         sunLight = new THREE.DirectionalLight(0xfffaed, 2.0);
-        sunLight.position.set(16, 26, 18);
+        sunLight.position.set(22, 32, 24);
         sunLight.castShadow = true;
         sunLight.shadow.mapSize.width = 4096;
         sunLight.shadow.mapSize.height = 4096;
         sunLight.shadow.camera.near = 1;
-        sunLight.shadow.camera.far = 65;
-        sunLight.shadow.camera.left = -20;
-        sunLight.shadow.camera.right = 20;
-        sunLight.shadow.camera.top = 20;
-        sunLight.shadow.camera.bottom = -20;
+        sunLight.shadow.camera.far = 165;
+        sunLight.shadow.camera.left = -45;
+        sunLight.shadow.camera.right = 65;
+        sunLight.shadow.camera.top = 55;
+        sunLight.shadow.camera.bottom = -60;
         sunLight.shadow.normalBias = 0.02;
         sunLight.shadow.bias = -0.0001;
         sunLight.shadow.radius = 1.0;
@@ -3238,6 +3769,8 @@ window.House3D = (function() {
         scene.add(houseGroup);
         scene.add(exteriorGroup);
         scene.add(dimensionMarkersGroup);
+
+        buildNeighborhood();
 
         window.addEventListener("resize", onWindowResize);
         animate();
@@ -3273,8 +3806,12 @@ window.House3D = (function() {
             atticGroup.visible = true;
             roofGroup.visible = isRoofVisible;
 
-            gsap.to(camera.position, { x: 13.5, y: 10.5, z: 19.5, duration: 1.2, ease: "power2.inOut" });
-            controls.target.set(0, 2.6, 2.5);
+            const camX = areNeighborsVisible ? 16.5 : 13.5;
+            const camZ = areNeighborsVisible ? 24.5 : 19.5;
+            const targetX = areNeighborsVisible ? 3.5 : 0;
+            const targetZ = areNeighborsVisible ? 1.0 : 2.5;
+            gsap.to(camera.position, { x: camX, y: 12.0, z: camZ, duration: 1.2, ease: "power2.inOut" });
+            controls.target.set(targetX, 2.6, targetZ);
         } else if (floorName === "ground") {
             groundFloorGroup.visible = true;
             firstFloorGroup.visible = false;
@@ -3528,7 +4065,28 @@ window.House3D = (function() {
     function toggleVehicles() {
         areVehiclesVisible = !areVehiclesVisible;
         vehiclesGroup.visible = areVehiclesVisible;
+        neighborHouses.forEach(nh => {
+            const v = nh.getObjectByName("vehiclesAndEntrance");
+            if (v) {
+                const kia = v.getObjectByName("KiaSportage2025");
+                const ktm = v.getObjectByName("KTM1290SuperAdventureS");
+                if (kia) kia.visible = areVehiclesVisible;
+                if (ktm) ktm.visible = areVehiclesVisible;
+            }
+        });
         return areVehiclesVisible;
+    }
+
+    function toggleNeighbors() {
+        areNeighborsVisible = !areNeighborsVisible;
+        if (neighborhoodGroup) {
+            neighborhoodGroup.visible = areNeighborsVisible;
+        }
+        return areNeighborsVisible;
+    }
+
+    function areNeighborsShown() {
+        return areNeighborsVisible;
     }
 
     function toggleSunlight() {
@@ -3612,6 +4170,8 @@ window.House3D = (function() {
         stopVideoTour: stopVideoTour,
         toggleRoof: toggleRoof,
         toggleVehicles: toggleVehicles,
+        toggleNeighbors: toggleNeighbors,
+        areNeighborsShown: areNeighborsShown,
         toggleSunlight: toggleSunlight,
         swapVehicles: swapVehicles,
         isVehiclesSwapped: isVehiclesSwapped,

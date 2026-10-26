@@ -25,6 +25,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const btnToggleRoof = document.getElementById("btn-toggle-roof");
     const btnToggleVehicles = document.getElementById("btn-toggle-vehicles");
+    const btnToggleNeighbors = document.getElementById("btn-toggle-neighbors");
     const btnToggleSun = document.getElementById("btn-toggle-sun");
     const btnResetCam = document.getElementById("btn-reset-cam");
     const btnSwapVehicles = document.getElementById("btn-swap-vehicles");
@@ -246,6 +247,19 @@ document.addEventListener("DOMContentLoaded", () => {
         const visible = House3D.toggleVehicles();
         btnToggleVehicles.classList.toggle("active", visible);
     });
+
+    if (btnToggleNeighbors) {
+        btnToggleNeighbors.addEventListener("click", () => {
+            const visible = House3D.toggleNeighbors();
+            btnToggleNeighbors.classList.toggle("active", !visible);
+            btnToggleNeighbors.innerHTML = visible
+                ? `<i class="fa-solid fa-city"></i> Vecinos`
+                : `<i class="fa-solid fa-eye-slash"></i> Sin Vecinos`;
+            btnToggleNeighbors.title = visible
+                ? "Ocultar todas las casas vecinas"
+                : "Mostrar todas las casas vecinas";
+        });
+    }
 
     btnToggleSun.addEventListener("click", () => {
         const mode = House3D.toggleSunlight();
